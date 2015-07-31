@@ -11,6 +11,7 @@
 #include <amqp_tcp_socket.h>
 #include <amqp.h>
 #include <amqp_framing.h>
+#include <amqp_ssl_socket.h>
 
 typedef struct
 {
@@ -24,6 +25,74 @@ typedef xs_rabbitmq_t * Net__RabbitMQ__Client;
 MODULE = Net::RabbitMQ::Client  PACKAGE = Net::RabbitMQ::Client
 
 PROTOTYPES: DISABLE
+
+# +SSL
+
+amqp_socket_t*
+ssl_socket_new(rmq, conn)
+	Net::RabbitMQ::Client rmq;
+	amqp_connection_state_t conn;
+	
+	CODE:
+		RETVAL = amqp_ssl_socket_new(conn);
+	OUTPUT:
+		RETVAL
+
+xs_status
+ssl_socket_set_cacert(rmq, socket, cacert)
+	Net::RabbitMQ::Client rmq;
+	amqp_socket_t *socket;
+	const char *cacert;
+	
+	CODE:
+		RETVAL = amqp_ssl_socket_set_cacert(socket, cacert);
+	OUTPUT:
+		RETVAL
+
+xs_status
+ssl_socket_set_key(rmq, socket, cert, key)
+	Net::RabbitMQ::Client rmq;
+	amqp_socket_t *socket;
+	const char *cert;
+	const char *key;
+	
+	CODE:
+		RETVAL = amqp_ssl_socket_set_key(socket, cert, key);
+	OUTPUT:
+		RETVAL
+
+xs_status
+ssl_socket_set_key_buffer(rmq, socket, cert, key, n)
+	Net::RabbitMQ::Client rmq;
+	amqp_socket_t *socket;
+	const char *cert;
+	const char *key;
+	size_t n;
+	
+	CODE:
+		RETVAL = amqp_ssl_socket_set_key_buffer(socket, cert, key, n);
+	OUTPUT:
+		RETVAL
+
+void
+ssl_socket_set_verify(rmq, socket, verify)
+	Net::RabbitMQ::Client rmq;
+	amqp_socket_t *socket;
+	amqp_boolean_t verify;
+	
+	CODE:
+		amqp_ssl_socket_set_verify(socket, verify);
+
+void
+set_initialize_ssl_library(rmq, do_initialize)
+	Net::RabbitMQ::Client rmq;
+	amqp_boolean_t do_initialize;
+	
+	CODE:
+		amqp_set_initialize_ssl_library(do_initialize);
+
+
+# -SSL
 
 Net::RabbitMQ::Client
 create(name = 0)
@@ -66,6 +135,66 @@ socket_open(rmq, socket, host, port)
 	
 	CODE:
 		RETVAL = amqp_socket_open(socket, host, port);
+	OUTPUT:
+		RETVAL
+
+xs_status
+socket_open_noblock(rmq, socket, host, port, timeout)
+	Net::RabbitMQ::Client rmq;
+	amqp_socket_t * socket;
+	const char *host;
+	int port;
+	SV *timeout;
+	
+	CODE:
+		struct timeval *t_timeout = NULL;
+		
+		if(SvOK(timeout))
+		{
+			t_timeout = INT2PTR(struct timeval *, SvIV(timeout));
+		}
+		
+		RETVAL = amqp_socket_open_noblock(socket, host, port, t_timeout);
+	OUTPUT:
+		RETVAL
+
+SV*
+socket_get_sockfd(rmq, socket)
+	Net::RabbitMQ::Client rmq;
+	amqp_socket_t * socket;
+	
+	CODE:
+		RETVAL = newSViv(amqp_socket_get_sockfd(socket));
+	OUTPUT:
+		RETVAL
+
+amqp_socket_t *
+get_socket(rmq, conn)
+	Net::RabbitMQ::Client rmq;
+	amqp_connection_state_t conn;
+	
+	CODE:
+		RETVAL = amqp_get_socket(conn);
+	OUTPUT:
+		RETVAL
+
+SV*
+error_string(rmq, error)
+	Net::RabbitMQ::Client rmq;
+	int error;
+	
+	CODE:
+		RETVAL = newSVpv(amqp_error_string2(error), 0);
+	OUTPUT:
+		RETVAL
+
+amqp_boolean_t
+data_in_buffer(rmq, conn)
+	Net::RabbitMQ::Client rmq;
+	amqp_connection_state_t conn;
+	
+	CODE:
+		RETVAL = amqp_data_in_buffer(conn);
 	OUTPUT:
 		RETVAL
 
@@ -122,6 +251,26 @@ queue_bind(rmq, conn, channel, queue, exchange, routing_key, ...)
 	
 	CODE:
 		amqp_queue_bind(conn, channel, amqp_cstring_bytes(queue),
+			amqp_cstring_bytes(exchange), amqp_cstring_bytes(routing_key), amqp_empty_table
+		);
+		
+		amqp_rpc_reply_t rt = amqp_get_rpc_reply(conn);
+		RETVAL = rt.reply_type;
+		
+	OUTPUT:
+		RETVAL
+
+xs_status
+queue_unbind(rmq, conn, channel, queue, exchange, routing_key, ...)
+	Net::RabbitMQ::Client rmq;
+	amqp_connection_state_t conn;
+	amqp_channel_t channel;
+	const char *queue;
+	const char *exchange;
+	const char *routing_key;
+	
+	CODE:
+		amqp_queue_unbind(conn, channel, amqp_cstring_bytes(queue),
 			amqp_cstring_bytes(exchange), amqp_cstring_bytes(routing_key), amqp_empty_table
 		);
 		
@@ -202,6 +351,64 @@ envelope_get_message_body(rmq, envelope)
 		else {
 			RETVAL = &PL_sv_undef;
 		}
+		
+	OUTPUT:
+		RETVAL
+
+xs_status
+basic_nack(rmq, conn, channel, delivery_tag, multiple, requeue)
+	Net::RabbitMQ::Client rmq;
+	amqp_connection_state_t conn;
+	amqp_channel_t channel;
+	SV *delivery_tag;
+	amqp_boolean_t multiple;
+	amqp_boolean_t requeue;
+	
+	CODE:
+		RETVAL = amqp_basic_nack(conn, channel, SvIV(delivery_tag), multiple, requeue);
+		
+	OUTPUT:
+		RETVAL
+
+xs_status
+basic_reject(rmq, conn, channel, delivery_tag, requeue)
+	Net::RabbitMQ::Client rmq;
+	amqp_connection_state_t conn;
+	amqp_channel_t channel;
+	SV *delivery_tag;
+	amqp_boolean_t requeue;
+	
+	CODE:
+		RETVAL = amqp_basic_reject(conn, channel, SvIV(delivery_tag), requeue);
+		
+	OUTPUT:
+		RETVAL
+
+xs_status
+basic_get(rmq, conn, channel, queue, no_ack)
+	Net::RabbitMQ::Client rmq;
+	amqp_connection_state_t conn;
+	amqp_channel_t channel;
+	const char *queue;
+	amqp_boolean_t no_ack;
+	
+	CODE:
+		amqp_rpc_reply_t rt = amqp_basic_get(conn, channel, amqp_cstring_bytes(queue), no_ack);
+		RETVAL = rt.reply_type;
+		
+	OUTPUT:
+		RETVAL
+
+xs_status
+basic_ack(rmq, conn, channel, delivery_tag, multiple)
+	Net::RabbitMQ::Client rmq;
+	amqp_connection_state_t conn;
+	amqp_channel_t channel;
+	SV *delivery_tag;
+	amqp_boolean_t multiple;
+	
+	CODE:
+		RETVAL = amqp_basic_ack(conn, channel, SvIV(delivery_tag), multiple);
 		
 	OUTPUT:
 		RETVAL
@@ -312,6 +519,29 @@ destroy_connection(rmq, conn)
 	
 	CODE:
 		RETVAL = amqp_destroy_connection(conn);
+		
+	OUTPUT:
+		RETVAL
+
+xs_status
+exchange_declare(rmq, conn, channel, exchange, type, passive, durable, auto_delete, internal, ...)
+	Net::RabbitMQ::Client rmq;
+	amqp_connection_state_t conn;
+	amqp_channel_t channel;
+	const char *exchange;
+	const char *type;
+	int passive;
+	int durable;
+	int auto_delete;
+	int internal;
+	
+	CODE:
+		amqp_exchange_declare(conn, channel, amqp_cstring_bytes(exchange), amqp_cstring_bytes(type),
+			passive, durable, auto_delete, internal, amqp_empty_table
+		);
+		
+		amqp_rpc_reply_t rt = amqp_get_rpc_reply(conn);
+		RETVAL = rt.reply_type;
 		
 	OUTPUT:
 		RETVAL

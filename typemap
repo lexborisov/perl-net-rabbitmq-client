@@ -9,6 +9,7 @@ amqp_channel_t T_IV
 amqp_basic_properties_t * T_PTROBJ
 amqp_basic_consume_ok_t * T_PTROBJ
 amqp_envelope_t * T_PTROBJ
+amqp_boolean_t T_IV
 struct timeval * T_PTROBJ
 
 xs_status T_IV
