@@ -82,25 +82,17 @@ Net::RabbitMQ::Client - RabbitMQ client (XS for librabbitmq v0.7.0)
 		my $socket = $rmq->tcp_socket_new($conn);
 		
 		my $status = $rmq->socket_open($socket, "best.host.for.rabbitmq.net", 5672);
-		if($status) {
-		    print("Can't create socket\n");
-		}
+		die "Can't create socket" if $status;
 		
 		$status = $rmq->login($conn, "/", 0, 131072, 0, AMQP_SASL_METHOD_PLAIN, "login", "password");
-		if($status != AMQP_RESPONSE_NORMAL) {
-		    print("Can't login on server\n");
-		}
+		die "Can't login on server" if $status != AMQP_RESPONSE_NORMAL;
 		
 		$status = $rmq->channel_open($conn, $channel);
-		if($status != AMQP_RESPONSE_NORMAL) {
-		    print("Can't open chanel");
-		}
+		die "Can't open chanel" if $status != AMQP_RESPONSE_NORMAL;
 	    
 		$rmq->queue_bind($conn, 1, "test_q", $exchange, $routingkey, 0);
-		if($status != AMQP_RESPONSE_NORMAL) {
-		    print("Can't amqp_queue_bind\n");
-		}
-	    
+		die "Can't bind queue" if $status != AMQP_RESPONSE_NORMAL;
+		
 		my $props = $rmq->type_create_basic_properties();
 		$rmq->set_prop__flags($props, AMQP_BASIC_CONTENT_TYPE_FLAG|AMQP_BASIC_DELIVERY_MODE_FLAG);
 		$rmq->set_prop_content_type($props, "text/plain");
@@ -109,7 +101,7 @@ Net::RabbitMQ::Client - RabbitMQ client (XS for librabbitmq v0.7.0)
 		$status = $rmq->basic_publish($conn, $channel, $exchange, $routingkey, 0, 0, $props, $messagebody);
 		
 		if($status != AMQP_STATUS_OK) {
-		    print("Can't send message\n");
+		    print "Can't send message\n";
 		}
 		
 		$rmq->type_destroy_basic_properties($props);
@@ -132,29 +124,16 @@ Net::RabbitMQ::Client - RabbitMQ client (XS for librabbitmq v0.7.0)
 		my $socket = $rmq->tcp_socket_new($conn);
 		
 		my $status = $rmq->socket_open($socket, "best.host.for.rabbitmq.net", 5672);
-		if($status) {
-		    print("Can't create socket\n");
-		}
+		die "Can't create socket" if $status;
 		
 		$status = $rmq->login($conn, "/", 0, 131072, 0, AMQP_SASL_METHOD_PLAIN, "login", "password");
-		if($status != AMQP_RESPONSE_NORMAL) {
-		    print("Can't login on server\n");
-		}
+		die "Can't login on server" if $status != AMQP_RESPONSE_NORMAL;
 		
 		$status = $rmq->channel_open($conn, $channel);
-		if($status != AMQP_RESPONSE_NORMAL) {
-		    print("Can't open chanel");
-		}
-	    
-		#$rmq->queue_bind($conn, 1, "test_q", $exchange, $routingkey, 0);
-		#if($status != AMQP_RESPONSE_NORMAL) {
-		#    print("Can't amqp_queue_bind\n");
-		#}
-	    
+		die "Can't open chanel" if $status != AMQP_RESPONSE_NORMAL;
+		
 		$status = $rmq->basic_consume($conn, 1, "test_q", undef, 0, 1, 0);
-		if($status != AMQP_RESPONSE_NORMAL) {
-		    print("Consuming\n");
-		}
+		die "Consuming" if $status != AMQP_RESPONSE_NORMAL;
 		
 		my $envelope = $rmq->type_create_envelope();
 		
@@ -188,6 +167,7 @@ Current v0.7.0 ( https://github.com/alanxz/rabbitmq-c/releases/tag/v0.7.0 )
 
 See https://github.com/alanxz/rabbitmq-c
 
+https://github.com/lexborisov/perl-net-rabbitmq-client
 
 =head1 DESTROY
 
