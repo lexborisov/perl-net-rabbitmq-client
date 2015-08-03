@@ -178,6 +178,8 @@ get_socket(rmq, conn)
 	OUTPUT:
 		RETVAL
 
+# + include in pod
+
 SV*
 error_string(rmq, error)
 	Net::RabbitMQ::Client rmq;
@@ -197,6 +199,7 @@ data_in_buffer(rmq, conn)
 		RETVAL = amqp_data_in_buffer(conn);
 	OUTPUT:
 		RETVAL
+# - include in pod
 
 xs_status
 login(rmq, conn, vhost, channel_max, frame_max, heartbeat, sasl_method, ...)
@@ -351,6 +354,17 @@ envelope_get_message_body(rmq, envelope)
 		else {
 			RETVAL = &PL_sv_undef;
 		}
+		
+	OUTPUT:
+		RETVAL
+
+SV*
+envelope_get_delivery_tag(rmq, envelope)
+	Net::RabbitMQ::Client rmq;
+	amqp_envelope_t *envelope;
+	
+	CODE:
+		RETVAL = newSViv(envelope->delivery_tag);
 		
 	OUTPUT:
 		RETVAL
