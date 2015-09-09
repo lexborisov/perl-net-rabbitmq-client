@@ -249,12 +249,22 @@ queue_bind(rmq, conn, channel, queue, exchange, routing_key, ...)
 	amqp_connection_state_t conn;
 	amqp_channel_t channel;
 	const char *queue;
-	const char *exchange;
+	SV *exchange;
 	const char *routing_key;
 	
 	CODE:
+		amqp_bytes_t c_exchange;
+		
+		if(SvOK(exchange))
+		{
+			c_exchange = amqp_cstring_bytes(SvPV_nolen(exchange));
+		}
+		else {
+			c_exchange = amqp_empty_bytes;
+		}
+		
 		amqp_queue_bind(conn, channel, amqp_cstring_bytes(queue),
-			amqp_cstring_bytes(exchange), amqp_cstring_bytes(routing_key), amqp_empty_table
+			c_exchange, amqp_cstring_bytes(routing_key), amqp_empty_table
 		);
 		
 		amqp_rpc_reply_t rt = amqp_get_rpc_reply(conn);
@@ -365,6 +375,76 @@ envelope_get_delivery_tag(rmq, envelope)
 	
 	CODE:
 		RETVAL = newSViv(envelope->delivery_tag);
+		
+	OUTPUT:
+		RETVAL
+
+SV*
+envelope_get_consumer_tag(rmq, envelope)
+	Net::RabbitMQ::Client rmq;
+	amqp_envelope_t *envelope;
+	
+	CODE:
+		if(envelope->consumer_tag.len) {
+			RETVAL = newSVpv((char *)envelope->consumer_tag.bytes, envelope->consumer_tag.len);
+		}
+		else {
+			RETVAL = &PL_sv_undef;
+		}
+		
+	OUTPUT:
+		RETVAL
+
+SV*
+envelope_get_routing_key(rmq, envelope)
+	Net::RabbitMQ::Client rmq;
+	amqp_envelope_t *envelope;
+	
+	CODE:
+		if(envelope->routing_key.len) {
+			RETVAL = newSVpv((char *)envelope->routing_key.bytes, envelope->routing_key.len);
+		}
+		else {
+			RETVAL = &PL_sv_undef;
+		}
+		
+	OUTPUT:
+		RETVAL
+
+SV*
+envelope_get_exchange(rmq, envelope)
+	Net::RabbitMQ::Client rmq;
+	amqp_envelope_t *envelope;
+	
+	CODE:
+		if(envelope->exchange.len) {
+			RETVAL = newSVpv((char *)envelope->exchange.bytes, envelope->exchange.len);
+		}
+		else {
+			RETVAL = &PL_sv_undef;
+		}
+		
+	OUTPUT:
+		RETVAL
+
+SV*
+envelope_get_redelivered(rmq, envelope)
+	Net::RabbitMQ::Client rmq;
+	amqp_envelope_t *envelope;
+	
+	CODE:
+		RETVAL = newSViv(envelope->redelivered);
+		
+	OUTPUT:
+		RETVAL
+
+SV*
+envelope_get_channel(rmq, envelope)
+	Net::RabbitMQ::Client rmq;
+	amqp_envelope_t *envelope;
+	
+	CODE:
+		RETVAL = newSViv(envelope->channel);
 		
 	OUTPUT:
 		RETVAL
@@ -483,7 +563,7 @@ basic_publish(rmq, conn, channel, exchange, routing_key, mandatory, immediate, p
 	Net::RabbitMQ::Client rmq;
 	amqp_connection_state_t conn;
 	amqp_channel_t channel;
-	const char *exchange;
+	SV *exchange;
 	const char *routing_key;
 	int mandatory;
 	int immediate;
@@ -491,7 +571,17 @@ basic_publish(rmq, conn, channel, exchange, routing_key, mandatory, immediate, p
 	const char *body;
 	
 	CODE:
-		RETVAL = amqp_basic_publish(conn, channel, amqp_cstring_bytes(exchange),
+		amqp_bytes_t c_exchange;
+		
+		if(SvOK(exchange))
+		{
+			c_exchange = amqp_cstring_bytes(SvPV_nolen(exchange));
+		}
+		else {
+			c_exchange = amqp_empty_bytes;
+		}
+		
+		RETVAL = amqp_basic_publish(conn, channel, c_exchange,
 			amqp_cstring_bytes(routing_key), mandatory, immediate, properties,
 			amqp_cstring_bytes(body)
 		);
@@ -552,6 +642,28 @@ exchange_declare(rmq, conn, channel, exchange, type, passive, durable, auto_dele
 	CODE:
 		amqp_exchange_declare(conn, channel, amqp_cstring_bytes(exchange), amqp_cstring_bytes(type),
 			passive, durable, auto_delete, internal, amqp_empty_table
+		);
+		
+		amqp_rpc_reply_t rt = amqp_get_rpc_reply(conn);
+		RETVAL = rt.reply_type;
+		
+	OUTPUT:
+		RETVAL
+
+xs_status
+queue_declare(rmq, conn, channel, queue, passive, durable, exclusive, auto_delete, ...)
+	Net::RabbitMQ::Client rmq;
+	amqp_connection_state_t conn;
+	amqp_channel_t channel;
+	const char *queue;
+	int passive;
+	int durable;
+	int exclusive;
+	int auto_delete;
+	
+	CODE:
+		amqp_queue_declare(conn, channel, amqp_cstring_bytes(queue),
+			passive, durable, exclusive, auto_delete, amqp_empty_table
 		);
 		
 		amqp_rpc_reply_t rt = amqp_get_rpc_reply(conn);

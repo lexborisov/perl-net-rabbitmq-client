@@ -1,11 +1,9 @@
-Database::Sophia
+Net::RabbitMQ::Client
 =============
 
 DESCRIPTION
 
 This is glue for RabbitMQ-C library.
-
-Current v0.7.0 ( https://github.com/alanxz/rabbitmq-c/releases/tag/v0.7.0 )
 
 See https://github.com/alanxz/rabbitmq-c
 
