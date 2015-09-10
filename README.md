@@ -35,6 +35,7 @@ sub produce {
         my $simple = Net::RabbitMQ::Client->sm_new(
                 host => "best.host.for.rabbitmq.net",
                 login => "login", password => "password",
+                exchange => "test_ex", exchange_type => "direct", exchange_declare => 1,
                 queue => "test_queue", queue_declare => 1
         );
         die sm_get_error_desc($simple) unless ref $simple;
@@ -173,7 +174,7 @@ This is glue for RabbitMQ-C library
 
 # METHODS
 
-## Simple API
+# Simple API
 
 ### sm_new
 
@@ -302,9 +303,506 @@ $simple->sm_destroy();
 ```
 
 
-## Base API
+# Base API
 
-Description will be later
+## Connection and Authorization
+
+### create
+
+```perl
+ my $rmq = Net::RabbitMQ::Client->create();
+```
+
+Return: rmq
+
+
+### new_connection
+
+```perl
+ my $amqp_connection_state_t = $rmq->new_connection();
+```
+
+Return: amqp_connection_state_t
+
+
+### tcp_socket_new
+
+```perl
+ my $amqp_socket_t = $rmq->tcp_socket_new($conn);
+```
+
+Return: amqp_socket_t
+
+
+### socket_open
+
+```perl
+ my $status = $rmq->socket_open($socket, $host, $port);
+```
+
+Return: status
+
+
+### socket_open_noblock
+
+```perl
+ my $status = $rmq->socket_open_noblock($socket, $host, $port, $struct_timeout);
+```
+
+Return: status
+
+
+### login
+
+```perl
+ my $status = $rmq->login($conn, $vhost, $channel_max, $frame_max, $heartbeat, $sasl_method);
+```
+
+Return: status
+
+
+### channel_open
+
+```perl
+ my $status = $rmq->channel_open($conn, $channel);
+```
+
+Return: status
+
+
+### socket_get_sockfd
+
+```perl
+ my $res = $rmq->socket_get_sockfd($socket);
+```
+
+Return: variable
+
+
+### get_socket
+
+```perl
+ my $amqp_socket_t  = $rmq->get_socket($conn);
+```
+
+Return: amqp_socket_t 
+
+
+### channel_close
+
+```perl
+ my $status = $rmq->channel_close($conn, $channel, $code);
+```
+
+Return: status
+
+
+### connection_close
+
+```perl
+ my $status = $rmq->connection_close($conn, $code);
+```
+
+Return: status
+
+
+### destroy_connection
+
+```perl
+ my $status = $rmq->destroy_connection($conn);
+```
+
+Return: status
+
+
+## SSL
+
+### ssl_socket_new
+
+```perl
+ my $amqp_socket_t = $rmq->ssl_socket_new($conn);
+```
+
+Return: amqp_socket_t
+
+
+### ssl_socket_set_key
+
+```perl
+ my $status = $rmq->ssl_socket_set_key($socket, $cert, $key);
+```
+
+Return: status
+
+
+### set_initialize_ssl_library
+
+```perl
+ $rmq->set_initialize_ssl_library($do_initialize);
+```
+
+### ssl_socket_set_cacert
+
+```perl
+ my $status = $rmq->ssl_socket_set_cacert($socket, $cacert);
+```
+
+Return: status
+
+
+### ssl_socket_set_key_buffer
+
+```perl
+ my $status = $rmq->ssl_socket_set_key_buffer($socket, $cert, $key, $n);
+```
+
+Return: status
+
+
+### ssl_socket_set_verify
+
+```perl
+ $rmq->ssl_socket_set_verify($socket, $verify);
+```
+
+## Basic Publish/Consume
+
+### basic_publish
+
+```perl
+ my $status = $rmq->basic_publish($conn, $channel, $exchange, $routing_key, $mandatory, $immediate, $properties, $body);
+```
+
+Return: status
+
+
+### basic_consume
+
+```perl
+ my $status = $rmq->basic_consume($conn, $channel, $queue, $consumer_tag, $no_local, $no_ack, $exclusive);
+```
+
+Return: status
+
+
+### basic_get
+
+```perl
+ my $status = $rmq->basic_get($conn, $channel, $queue, $no_ack);
+```
+
+Return: status
+
+
+### basic_ack
+
+```perl
+ my $status = $rmq->basic_ack($conn, $channel, $delivery_tag, $multiple);
+```
+
+Return: status
+
+
+### basic_nack
+
+```perl
+ my $status = $rmq->basic_nack($conn, $channel, $delivery_tag, $multiple, $requeue);
+```
+
+Return: status
+
+
+### basic_reject
+
+```perl
+ my $status = $rmq->basic_reject($conn, $channel, $delivery_tag, $requeue);
+```
+
+Return: status
+
+
+## Consume
+
+### consume_message
+
+```perl
+ my $status = $rmq->consume_message($conn, $envelope, $struct_timeout, $flags);
+```
+
+Return: status
+
+
+## Queue
+
+### queue_declare
+
+```perl
+ my $status = $rmq->queue_declare($conn, $channel, $queue, $passive, $durable, $exclusive, $auto_delete);
+```
+
+Return: status
+
+
+### queue_bind
+
+```perl
+ my $status = $rmq->queue_bind($conn, $channel, $queue, $exchange, $routing_key);
+```
+
+Return: status
+
+
+### queue_unbind
+
+```perl
+ my $status = $rmq->queue_unbind($conn, $channel, $queue, $exchange, $routing_key);
+```
+
+Return: status
+
+
+## Exchange
+
+### exchange_declare
+
+```perl
+ my $status = $rmq->exchange_declare($conn, $channel, $exchange, $type, $passive, $durable, $auto_delete, $internal);
+```
+
+Return: status
+
+
+## Envelope
+
+### envelope_get_redelivered
+
+```perl
+ my $res = $rmq->envelope_get_redelivered($envelope);
+```
+
+Return: variable
+
+
+### envelope_get_channel
+
+```perl
+ my $res = $rmq->envelope_get_channel($envelope);
+```
+
+Return: variable
+
+
+### envelope_get_exchange
+
+```perl
+ my $res = $rmq->envelope_get_exchange($envelope);
+```
+
+Return: variable
+
+
+### envelope_get_routing_key
+
+```perl
+ my $res = $rmq->envelope_get_routing_key($envelope);
+```
+
+Return: variable
+
+
+### destroy_envelope
+
+```perl
+ $rmq->destroy_envelope($envelope);
+```
+
+### envelope_get_consumer_tag
+
+```perl
+ my $res = $rmq->envelope_get_consumer_tag($envelope);
+```
+
+Return: variable
+
+
+### envelope_get_delivery_tag
+
+```perl
+ my $res = $rmq->envelope_get_delivery_tag($envelope);
+```
+
+Return: variable
+
+
+### envelope_get_message_body
+
+```perl
+ my $res = $rmq->envelope_get_message_body($envelope);
+```
+
+Return: variable
+
+
+## Types
+
+### type_create_envelope
+
+```perl
+ my $amqp_envelope_t = $rmq->type_create_envelope();
+```
+
+Return: amqp_envelope_t
+
+
+### type_destroy_envelope
+
+```perl
+ $rmq->type_destroy_envelope($envelope);
+```
+
+### type_create_timeout
+
+```perl
+ my $struct_timeval = $rmq->type_create_timeout($timeout_sec);
+```
+
+Return: struct_timeval
+
+
+### type_destroy_timeout
+
+```perl
+ $rmq->type_destroy_timeout($timeout);
+```
+
+### type_create_basic_properties
+
+```perl
+ my $amqp_basic_properties_t = $rmq->type_create_basic_properties();
+```
+
+Return: amqp_basic_properties_t
+
+
+### type_destroy_basic_properties
+
+```perl
+ my $status = $rmq->type_destroy_basic_properties($props);
+```
+
+Return: status
+
+
+## For a Basic Properties
+
+### set_prop_app_id
+
+```perl
+ $rmq->set_prop_app_id($props, $value);
+```
+
+### set_prop_content_type
+
+```perl
+ $rmq->set_prop_content_type($props, $value);
+```
+
+### set_prop_reply_to
+
+```perl
+ $rmq->set_prop_reply_to($props, $value);
+```
+
+### set_prop_priority
+
+```perl
+ $rmq->set_prop_priority($props, $priority);
+```
+
+### set_prop__flags
+
+```perl
+ $rmq->set_prop__flags($props, $flags);
+```
+
+### set_prop_user_id
+
+```perl
+ $rmq->set_prop_user_id($props, $value);
+```
+
+### set_prop_delivery_mode
+
+```perl
+ $rmq->set_prop_delivery_mode($props, $delivery_mode);
+```
+
+### set_prop_message_id
+
+```perl
+ $rmq->set_prop_message_id($props, $value);
+```
+
+### set_prop_timestamp
+
+```perl
+ $rmq->set_prop_timestamp($props, $timestamp);
+```
+
+### set_prop_cluster_id
+
+```perl
+ $rmq->set_prop_cluster_id($props, $value);
+```
+
+### set_prop_correlation_id
+
+```perl
+ $rmq->set_prop_correlation_id($props, $value);
+```
+
+### set_prop_expiration
+
+```perl
+ $rmq->set_prop_expiration($props, $value);
+```
+
+### set_prop_type
+
+```perl
+ $rmq->set_prop_type($props, $value);
+```
+
+### set_prop_content_encoding
+
+```perl
+ $rmq->set_prop_content_encoding($props, $value);
+```
+
+## Other
+
+### data_in_buffer
+
+```perl
+ my $amqp_boolean_t = $rmq->data_in_buffer($conn);
+```
+
+Return: amqp_boolean_t
+
+
+### maybe_release_buffers
+
+```perl
+ $rmq->maybe_release_buffers($conn);
+```
+
+### error_string
+
+```perl
+ my $res = $rmq->error_string($error);
+```
+
+Return: variable
 
 
 # DESTROY
@@ -312,7 +810,6 @@ Description will be later
 ```perl
 undef $rmq;
 ```
-
 
 Free mem and destroy object.
 

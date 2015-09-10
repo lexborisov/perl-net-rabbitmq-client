@@ -136,6 +136,7 @@ sub sm_publish {
 		content_type  => "text/plain",
 		delivery_mode => AMQP_DELIVERY_PERSISTENT(),
 		_flags        => AMQP_BASIC_CONTENT_TYPE_FLAG()|AMQP_BASIC_DELIVERY_MODE_FLAG(),
+		priority      => undef
 		@_
 	};
 	
@@ -148,6 +149,7 @@ sub sm_publish {
         $rmq->set_prop__flags($props, $args->{"_flags"});
         $rmq->set_prop_content_type($props, $args->{content_type});
         $rmq->set_prop_delivery_mode($props, $args->{delivery_mode});
+	$rmq->set_prop_priority($props, $args->{priority}) if defined $args->{priority};
 	
         my $status = $rmq->basic_publish($conn, $channel, $config->{exchange}, $config->{routingkey}, 0, 0, $props, $data);
 	
@@ -254,6 +256,7 @@ Simple API:
 		my $simple = Net::RabbitMQ::Client->sm_new(
 			host => "best.host.for.rabbitmq.net",
 			login => "login", password => "password",
+			exchange => "test_ex", exchange_type => "direct", exchange_declare => 1,
 			queue => "test_queue", queue_declare => 1
 		);
 		die sm_get_error_desc($simple) unless ref $simple;
@@ -498,53 +501,384 @@ Destroy a Simple object
 
 =head2 Base API
 
+=head2 Connection and Authorization
+
 =head3 create
 
  my $rmq = Net::RabbitMQ::Client->create();
 
-Create XS_RabbitMQ object
+Return: rmq
+
 
 =head3 new_connection
 
- my $conn = $rmq->new_connection();
+ my $amqp_connection_state_t = $rmq->new_connection();
 
-Allocate and initialize a new amqp_connection_state_t object
+Return: amqp_connection_state_t
 
 
 =head3 tcp_socket_new
 
- my $socket = $rmq->tcp_socket_new();
+ my $amqp_socket_t = $rmq->tcp_socket_new($conn);
 
-Create a new TCP socket.
+Return: amqp_socket_t
 
 
 =head3 socket_open
 
  my $status = $rmq->socket_open($socket, $host, $port);
 
-Open a socket connection.
+Return: status
 
 
 =head3 socket_open_noblock
 
- my $status = $rmq->socket_open_noblock($socket, $host, $port, $timeout_in_sec);
+ my $status = $rmq->socket_open_noblock($socket, $host, $port, $struct_timeout);
 
-Open a non-blocking socket connection.
+Return: status
+
+
+=head3 login
+
+ my $status = $rmq->login($conn, $vhost, $channel_max, $frame_max, $heartbeat, $sasl_method);
+
+Return: status
+
+
+=head3 channel_open
+
+ my $status = $rmq->channel_open($conn, $channel);
+
+Return: status
 
 
 =head3 socket_get_sockfd
 
- my $int = $rmq->socket_get_sockfd($socket);
+ my $res = $rmq->socket_get_sockfd($socket);
 
-Get the socket descriptor in use by a socket object.
+Return: variable
 
 
 =head3 get_socket
 
- my $socket = $rmq->get_socket($conn);
+ my $amqp_socket_t  = $rmq->get_socket($conn);
 
-Get the socket object associated with a amqp_connection_state_t
+Return: amqp_socket_t 
 
+
+=head3 channel_close
+
+ my $status = $rmq->channel_close($conn, $channel, $code);
+
+Return: status
+
+
+=head3 connection_close
+
+ my $status = $rmq->connection_close($conn, $code);
+
+Return: status
+
+
+=head3 destroy_connection
+
+ my $status = $rmq->destroy_connection($conn);
+
+Return: status
+
+
+=head2 SSL
+
+=head3 ssl_socket_new
+
+ my $amqp_socket_t = $rmq->ssl_socket_new($conn);
+
+Return: amqp_socket_t
+
+
+=head3 ssl_socket_set_key
+
+ my $status = $rmq->ssl_socket_set_key($socket, $cert, $key);
+
+Return: status
+
+
+=head3 set_initialize_ssl_library
+
+ $rmq->set_initialize_ssl_library($do_initialize);
+
+=head3 ssl_socket_set_cacert
+
+ my $status = $rmq->ssl_socket_set_cacert($socket, $cacert);
+
+Return: status
+
+
+=head3 ssl_socket_set_key_buffer
+
+ my $status = $rmq->ssl_socket_set_key_buffer($socket, $cert, $key, $n);
+
+Return: status
+
+
+=head3 ssl_socket_set_verify
+
+ $rmq->ssl_socket_set_verify($socket, $verify);
+
+=head2 Basic Publish/Consume
+
+=head3 basic_publish
+
+ my $status = $rmq->basic_publish($conn, $channel, $exchange, $routing_key, $mandatory, $immediate, $properties, $body);
+
+Return: status
+
+
+=head3 basic_consume
+
+ my $status = $rmq->basic_consume($conn, $channel, $queue, $consumer_tag, $no_local, $no_ack, $exclusive);
+
+Return: status
+
+
+=head3 basic_get
+
+ my $status = $rmq->basic_get($conn, $channel, $queue, $no_ack);
+
+Return: status
+
+
+=head3 basic_ack
+
+ my $status = $rmq->basic_ack($conn, $channel, $delivery_tag, $multiple);
+
+Return: status
+
+
+=head3 basic_nack
+
+ my $status = $rmq->basic_nack($conn, $channel, $delivery_tag, $multiple, $requeue);
+
+Return: status
+
+
+=head3 basic_reject
+
+ my $status = $rmq->basic_reject($conn, $channel, $delivery_tag, $requeue);
+
+Return: status
+
+
+=head2 Consume
+
+=head3 consume_message
+
+ my $status = $rmq->consume_message($conn, $envelope, $struct_timeout, $flags);
+
+Return: status
+
+
+=head2 Queue
+
+=head3 queue_declare
+
+ my $status = $rmq->queue_declare($conn, $channel, $queue, $passive, $durable, $exclusive, $auto_delete);
+
+Return: status
+
+
+=head3 queue_bind
+
+ my $status = $rmq->queue_bind($conn, $channel, $queue, $exchange, $routing_key);
+
+Return: status
+
+
+=head3 queue_unbind
+
+ my $status = $rmq->queue_unbind($conn, $channel, $queue, $exchange, $routing_key);
+
+Return: status
+
+
+=head2 Exchange
+
+=head3 exchange_declare
+
+ my $status = $rmq->exchange_declare($conn, $channel, $exchange, $type, $passive, $durable, $auto_delete, $internal);
+
+Return: status
+
+
+=head2 Envelope
+
+=head3 envelope_get_redelivered
+
+ my $res = $rmq->envelope_get_redelivered($envelope);
+
+Return: variable
+
+
+=head3 envelope_get_channel
+
+ my $res = $rmq->envelope_get_channel($envelope);
+
+Return: variable
+
+
+=head3 envelope_get_exchange
+
+ my $res = $rmq->envelope_get_exchange($envelope);
+
+Return: variable
+
+
+=head3 envelope_get_routing_key
+
+ my $res = $rmq->envelope_get_routing_key($envelope);
+
+Return: variable
+
+
+=head3 destroy_envelope
+
+ $rmq->destroy_envelope($envelope);
+
+=head3 envelope_get_consumer_tag
+
+ my $res = $rmq->envelope_get_consumer_tag($envelope);
+
+Return: variable
+
+
+=head3 envelope_get_delivery_tag
+
+ my $res = $rmq->envelope_get_delivery_tag($envelope);
+
+Return: variable
+
+
+=head3 envelope_get_message_body
+
+ my $res = $rmq->envelope_get_message_body($envelope);
+
+Return: variable
+
+
+=head2 Types
+
+=head3 type_create_envelope
+
+ my $amqp_envelope_t = $rmq->type_create_envelope();
+
+Return: amqp_envelope_t
+
+
+=head3 type_destroy_envelope
+
+ $rmq->type_destroy_envelope($envelope);
+
+=head3 type_create_timeout
+
+ my $struct_timeval = $rmq->type_create_timeout($timeout_sec);
+
+Return: struct_timeval
+
+
+=head3 type_destroy_timeout
+
+ $rmq->type_destroy_timeout($timeout);
+
+=head3 type_create_basic_properties
+
+ my $amqp_basic_properties_t = $rmq->type_create_basic_properties();
+
+Return: amqp_basic_properties_t
+
+
+=head3 type_destroy_basic_properties
+
+ my $status = $rmq->type_destroy_basic_properties($props);
+
+Return: status
+
+
+=head2 For a Basic Properties
+
+=head3 set_prop_app_id
+
+ $rmq->set_prop_app_id($props, $value);
+
+=head3 set_prop_content_type
+
+ $rmq->set_prop_content_type($props, $value);
+
+=head3 set_prop_reply_to
+
+ $rmq->set_prop_reply_to($props, $value);
+
+=head3 set_prop_priority
+
+ $rmq->set_prop_priority($props, $priority);
+
+=head3 set_prop__flags
+
+ $rmq->set_prop__flags($props, $flags);
+
+=head3 set_prop_user_id
+
+ $rmq->set_prop_user_id($props, $value);
+
+=head3 set_prop_delivery_mode
+
+ $rmq->set_prop_delivery_mode($props, $delivery_mode);
+
+=head3 set_prop_message_id
+
+ $rmq->set_prop_message_id($props, $value);
+
+=head3 set_prop_timestamp
+
+ $rmq->set_prop_timestamp($props, $timestamp);
+
+=head3 set_prop_cluster_id
+
+ $rmq->set_prop_cluster_id($props, $value);
+
+=head3 set_prop_correlation_id
+
+ $rmq->set_prop_correlation_id($props, $value);
+
+=head3 set_prop_expiration
+
+ $rmq->set_prop_expiration($props, $value);
+
+=head3 set_prop_type
+
+ $rmq->set_prop_type($props, $value);
+
+=head3 set_prop_content_encoding
+
+ $rmq->set_prop_content_encoding($props, $value);
+
+=head2 Other
+
+=head3 data_in_buffer
+
+ my $amqp_boolean_t = $rmq->data_in_buffer($conn);
+
+Return: amqp_boolean_t
+
+
+=head3 maybe_release_buffers
+
+ $rmq->maybe_release_buffers($conn);
+
+=head3 error_string
+
+ my $res = $rmq->error_string($error);
+
+Return: variable
 
 
 =head1 DESTROY
