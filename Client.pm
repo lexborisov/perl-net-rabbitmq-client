@@ -4,8 +4,6 @@ use utf8;
 use strict;
 use vars qw($AUTOLOAD $VERSION $ABSTRACT @ISA @EXPORT);
 
-AMQP_DELIVERY_NONPERSISTENT AMQP_DELIVERY_PERSISTENT
-
 BEGIN {
 	$VERSION = 0.4;
 	$ABSTRACT = "RabbitMQ client (XS for librabbitmq)";
@@ -90,29 +88,29 @@ sub sm_new {
 	my $status = $rmq->socket_open($socket, $config->{host}, $config->{port});
 	return $self->_destroy_and_status(10) if $status;
 	
-	$status = $rmq->login($conn, "/", 0, 131072, 0, AMQP_SASL_METHOD_PLAIN, $config->{login}, $config->{password});
-	return $self->_destroy_and_status(20) if $status != AMQP_RESPONSE_NORMAL;
+	$status = $rmq->login($conn, "/", 0, 131072, 0, AMQP_SASL_METHOD_PLAIN(), $config->{login}, $config->{password});
+	return $self->_destroy_and_status(20) if $status != AMQP_RESPONSE_NORMAL();
 	
 	$status = $rmq->channel_open($conn, $config->{channel});
-	return $self->_destroy_and_status(30) if $status != AMQP_RESPONSE_NORMAL;
+	return $self->_destroy_and_status(30) if $status != AMQP_RESPONSE_NORMAL();
 	
 	if (defined $config->{exchange} && $config->{exchange_declare} &&
-	    $config->{exchange} != '' && defined $config->{exchange_type})
+	    $config->{exchange} ne '' && defined $config->{exchange_type})
 	{
 		$status = $rmq->exchange_declare($conn, $config->{channel}, $config->{exchange}, $config->{exchange_type}, 0, 1, 0, 0);
-		return $self->_destroy_and_status(40) if $status != AMQP_RESPONSE_NORMAL;
+		return $self->_destroy_and_status(40) if $status != AMQP_RESPONSE_NORMAL();
 	}
 	
-	if (defined $config->{queue} && $config->{queue} != '')
+	if (defined $config->{queue} && $config->{queue} ne '')
 	{
 		if ($config->{queue_declare}) {
 			$rmq->queue_declare($conn, $config->{channel}, $config->{queue}, 0, 1, 0, 0);
-			return $self->_destroy_and_status(50) if $status != AMQP_RESPONSE_NORMAL;
+			return $self->_destroy_and_status(50) if $status != AMQP_RESPONSE_NORMAL();
 		}
 		
-		if (defined $config->{exchange} && $config->{exchange} != '') {
+		if (exists $config->{exchange} && $config->{exchange} ne '') {
 			$rmq->queue_bind($conn, $config->{channel}, $config->{queue}, $config->{exchange}, $config->{routingkey}, 0);
-			return $self->_destroy_and_status(51) if $status != AMQP_RESPONSE_NORMAL;
+			return $self->_destroy_and_status(51) if $status != AMQP_RESPONSE_NORMAL();
 		}
 	}
 	
@@ -126,8 +124,8 @@ sub sm_destroy {
 	my $config = $self->{config};
 	
 	if (ref $rmq && ref $self->{conn} && ref $config eq "HASH") {
-		$rmq->channel_close($self->{conn}, $config->{channel}, AMQP_REPLY_SUCCESS);
-		$rmq->connection_close($self->{conn}, AMQP_REPLY_SUCCESS);
+		$rmq->channel_close($self->{conn}, $config->{channel}, AMQP_REPLY_SUCCESS());
+		$rmq->connection_close($self->{conn}, AMQP_REPLY_SUCCESS());
 		$rmq->destroy_connection($self->{conn});
 	}
 }
@@ -136,8 +134,8 @@ sub sm_publish {
 	my ($self, $data) = (shift, shift);
 	my $args = {
 		content_type  => "text/plain",
-		delivery_mode => AMQP_DELIVERY_PERSISTENT,
-		_flags        => AMQP_BASIC_CONTENT_TYPE_FLAG|AMQP_BASIC_DELIVERY_MODE_FLAG,
+		delivery_mode => AMQP_DELIVERY_PERSISTENT(),
+		_flags        => AMQP_BASIC_CONTENT_TYPE_FLAG()|AMQP_BASIC_DELIVERY_MODE_FLAG(),
 		@_
 	};
 	
@@ -153,7 +151,7 @@ sub sm_publish {
 	
         my $status = $rmq->basic_publish($conn, $channel, $config->{exchange}, $config->{routingkey}, 0, 0, $props, $data);
 	
-        if($status != AMQP_STATUS_OK) {
+        if($status != AMQP_STATUS_OK()) {
 		$status = 70;
         }
 	
@@ -171,7 +169,7 @@ sub sm_get_messages {
 	my $channel = $config->{channel};
 	
 	my $status = $rmq->basic_consume($conn, $channel, $config->{queue}, undef, 0, 0, 0);
-	return 60 if $status != AMQP_RESPONSE_NORMAL;
+	return 60 if $status != AMQP_RESPONSE_NORMAL();
 	
 	my $envelope = $rmq->type_create_envelope();
 	
@@ -179,7 +177,7 @@ sub sm_get_messages {
 		$rmq->maybe_release_buffers($conn);
 		
 		my $status = $rmq->consume_message($conn, $envelope, 0, 0);
-		next if $status != AMQP_RESPONSE_NORMAL;
+		next if $status != AMQP_RESPONSE_NORMAL();
 		
 		if($callback->($self, $rmq->envelope_get_message_body($envelope))) {
 			$rmq->basic_ack($conn, $channel, $rmq->envelope_get_delivery_tag($envelope), 0);
@@ -202,7 +200,7 @@ sub sm_get_message {
 	my $channel = $config->{channel};
 	
 	my $status = $rmq->basic_consume($conn, $channel, $config->{queue}, undef, 0, 0, 0);
-	return $_[0] = 60 if $status != AMQP_RESPONSE_NORMAL && exists $_[0];
+	return $_[0] = 60 if $status != AMQP_RESPONSE_NORMAL() && exists $_[0];
 	
 	my $envelope = $rmq->type_create_envelope();
 	my $message;
@@ -211,7 +209,7 @@ sub sm_get_message {
 	
 	$status = $rmq->consume_message($conn, $envelope, 0, 0);
 	
-	if($status == AMQP_RESPONSE_NORMAL) {
+	if($status == AMQP_RESPONSE_NORMAL()) {
 		$message = $self, $rmq->envelope_get_message_body($envelope);
 	}
 	
