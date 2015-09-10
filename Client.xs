@@ -161,14 +161,14 @@ socket_open_noblock(rmq, socket, host, port, struct_timeout)
 	amqp_socket_t * socket;
 	const char *host;
 	int port;
-	SV *timeout;
+	SV *struct_timeout;
 	
 	CODE:
 		struct timeval *t_timeout = NULL;
 		
-		if(SvOK(timeout))
+		if(SvOK(struct_timeout))
 		{
-			t_timeout = INT2PTR(struct timeval *, SvIV(timeout));
+			t_timeout = INT2PTR(struct timeval *, SvIV(struct_timeout));
 		}
 		
 		RETVAL = amqp_socket_open_noblock(socket, host, port, t_timeout);
@@ -301,15 +301,15 @@ consume_message(rmq, conn, envelope, struct_timeout, flags)
 	Net::RabbitMQ::Client rmq;
 	amqp_connection_state_t conn;
 	amqp_envelope_t *envelope;
-	SV *timeout;
+	SV *struct_timeout;
 	int flags;
 	
 	CODE:
 		struct timeval *t_timeout = NULL;
 		
-		if(SvOK(timeout))
+		if(SvOK(struct_timeout))
 		{
-			t_timeout = INT2PTR(struct timeval *, SvIV(timeout));
+			t_timeout = INT2PTR(struct timeval *, SvIV(struct_timeout));
 		}
 		
 		amqp_rpc_reply_t rt = amqp_consume_message(conn, envelope, t_timeout, flags);
@@ -733,13 +733,13 @@ type_create_timeout(rmq, timeout_sec)
 #=sort 4
 
 void
-type_destroy_timeout(rmq, timeout)
+type_destroy_timeout(rmq, struct_timeout)
 	Net::RabbitMQ::Client rmq;
-	struct timeval *timeout;
+	struct timeval *struct_timeout;
 	
 	CODE:
-		if(timeout)
-			free(timeout);
+		if(struct_timeout)
+			free(struct_timeout);
 
 #=sort 5
 
