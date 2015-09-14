@@ -138,7 +138,8 @@ sub sm_publish {
 		content_type  => "text/plain",
 		delivery_mode => AMQP_DELIVERY_PERSISTENT(),
 		_flags        => AMQP_BASIC_CONTENT_TYPE_FLAG()|AMQP_BASIC_DELIVERY_MODE_FLAG(),
-		priority      => undef
+		priority      => undef,
+		routingkey    => undef,
 		@_
 	};
 	
@@ -153,7 +154,7 @@ sub sm_publish {
         $rmq->set_prop_delivery_mode($props, $args->{delivery_mode});
 	$rmq->set_prop_priority($props, $args->{priority}) if defined $args->{priority};
 	
-        my $status = $rmq->basic_publish($conn, $channel, $config->{exchange}, $config->{routingkey}, 0, 0, $props, $data);
+        my $status = $rmq->basic_publish($conn, $channel, $config->{exchange}, ($args->{routingkey} || $config->{routingkey}), 0, 0, $props, $data);
 	
         if($status != AMQP_STATUS_OK()) {
 		$status = 70;
