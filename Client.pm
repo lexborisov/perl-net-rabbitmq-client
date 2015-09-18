@@ -5,7 +5,7 @@ use strict;
 use vars qw($AUTOLOAD $VERSION $ABSTRACT @ISA @EXPORT);
 
 BEGIN {
-	$VERSION = 0.4;
+	$VERSION = 0.5;
 	$ABSTRACT = "RabbitMQ client (XS for librabbitmq)";
 	
 	@ISA = qw(Exporter DynaLoader);
@@ -224,6 +224,31 @@ sub sm_get_message {
 	$rmq->type_destroy_envelope($envelope);
 	
 	$message;
+}
+
+sub sm_queue_meta {
+	my ($self, $queue) = @_;
+	
+	my $rmq     = $self->{rmq};
+	my $conn    = $self->{conn};
+	my $config  = $self->{config};
+	my $channel = $config->{channel};
+	
+	my $ret = {};
+	$rmq->queue_declare($conn, $channel, $queue, 1, 0, 0, 0, undef, $ret);
+	
+	$ret;
+}
+
+sub sm_set_qos {
+	my ($self, $prefetch_size, $prefetch_count) = @_;
+	
+	my $rmq     = $self->{rmq};
+	my $conn    = $self->{conn};
+	my $config  = $self->{config};
+	my $channel = $config->{channel};
+	
+	$rmq->basic_qos($conn, $channel, $prefetch_size, $prefetch_count, 1);
 }
 
 sub sm_get_rabbitmq   {$_[0]->{rmq}}
@@ -488,11 +513,21 @@ Return: Socket object (from Base API tcp_socket_new)
 Return: Config when creating a Simple object
 
 
-=head3 sm_get_config
+=head3 sm_get_error_desc
 
 	my $description = $simple->sm_get_error_desc($sm_error_code);
 	
 Return: Error description by Simple error code
+
+=head3 sm_queue_meta
+
+	my $meta = $simple->sm_queue_meta($queue_name);
+	
+Return: hash, {queue => ..., message_count => ..., consumer_count => ...}
+
+=head3 sm_set_qos
+
+	$simple->sm_set_qos($prefetch_size, $prefetch_count);
 
 
 =head3 sm_destroy

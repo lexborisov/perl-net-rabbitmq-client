@@ -284,7 +284,7 @@ my $config = $simple->sm_get_config();
 Return: Config when creating a Simple object
 
 
-### sm_get_config
+### sm_get_error_desc
 
 ```perl
 my $description = $simple->sm_get_error_desc($sm_error_code);
@@ -292,6 +292,23 @@ my $description = $simple->sm_get_error_desc($sm_error_code);
 
 
 Return: Error description by Simple error code
+
+
+###head3 sm_queue_meta
+
+```perl
+my $meta = $simple->sm_queue_meta($queue_name);
+```
+
+
+Return: hash, {queue => ..., message_count => ..., consumer_count => ...}
+
+
+###head3 sm_set_qos
+
+```perl
+	$simple->sm_set_qos($prefetch_size, $prefetch_count);
+```
 
 
 ### sm_destroy

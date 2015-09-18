@@ -600,6 +600,25 @@ basic_reject(rmq, conn, channel, delivery_tag, requeue)
 	OUTPUT:
 		RETVAL
 
+#=sort 7
+
+xs_status
+basic_qos(rmq, conn, channel, prefetch_size, prefetch_count, global)
+	Net::RabbitMQ::Client rmq;
+	amqp_connection_state_t conn;
+	amqp_channel_t channel;
+	SV *prefetch_size;
+	SV *prefetch_count;
+	SV *global;
+	
+	CODE:
+		amqp_basic_qos(conn, channel, SvIV(prefetch_size), SvIV(prefetch_count), SvIV(global));
+		
+		amqp_rpc_reply_t rt = amqp_get_rpc_reply(conn);
+		RETVAL = rt.reply_type;
+		
+	OUTPUT:
+		RETVAL
 
 #***********************************************************************************
 #*
@@ -609,7 +628,7 @@ basic_reject(rmq, conn, channel, delivery_tag, requeue)
 #=sort 1
 
 xs_status
-queue_declare(rmq, conn, channel, queue, passive, durable, exclusive, auto_delete, ...)
+queue_declare(rmq, conn, channel, queue, passive, durable, exclusive, auto_delete, table = &PL_sv_undef, return_meta = &PL_sv_undef)
 	Net::RabbitMQ::Client rmq;
 	amqp_connection_state_t conn;
 	amqp_channel_t channel;
@@ -618,13 +637,35 @@ queue_declare(rmq, conn, channel, queue, passive, durable, exclusive, auto_delet
 	int durable;
 	int exclusive;
 	int auto_delete;
+	SV* table;
+	SV* return_meta;
 	
 	CODE:
-		amqp_queue_declare(conn, channel, amqp_cstring_bytes(queue),
+		amqp_queue_declare_ok_t *q_ok = amqp_queue_declare(conn, channel, amqp_cstring_bytes(queue),
 			passive, durable, exclusive, auto_delete, amqp_empty_table
 		);
 		
 		amqp_rpc_reply_t rt = amqp_get_rpc_reply(conn);
+		
+		setbuf(stdout, NULL);
+		
+		if(SvOK(return_meta) && AMQP_RESPONSE_NORMAL == rt.reply_type)
+		{
+			HV* hash = (HV*)SvRV(return_meta);
+			
+			SV **ha;
+			
+			if(q_ok->queue.len) {
+				ha = hv_store(hash, "queue", 5, newSVpv(q_ok->queue.bytes, q_ok->queue.len), 0);
+			}
+			else {
+				ha = hv_store(hash, "queue", 5, &PL_sv_undef, 0);
+			}
+			
+			ha = hv_store(hash, "message_count", 13, newSViv(q_ok->message_count), 0);
+			ha = hv_store(hash, "consumer_count", 14, newSViv(q_ok->consumer_count), 0);
+		}
+		
 		RETVAL = rt.reply_type;
 		
 	OUTPUT:
