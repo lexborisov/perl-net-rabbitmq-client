@@ -215,7 +215,7 @@ sub sm_get_message {
 	$status = $rmq->consume_message($conn, $envelope, 0, 0);
 	
 	if($status == AMQP_RESPONSE_NORMAL()) {
-		$message = $self, $rmq->envelope_get_message_body($envelope);
+		$message = $rmq->envelope_get_message_body($envelope);
 	}
 	
 	$rmq->basic_ack($conn, $channel, $rmq->envelope_get_delivery_tag($envelope), 0);
