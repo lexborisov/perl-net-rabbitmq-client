@@ -231,6 +231,15 @@ my $sm_status = $simple->sm_get_messages($callback);
 Return: 0 if successful, otherwise an error occurred
 
 
+### sm_get_messages_break_loop
+
+Break messages loop after next iteration
+
+```perl
+	$simple->sm_get_messages_break_loop();
+```
+
+
 ### sm_get_message
 
 Get one message

@@ -85,7 +85,7 @@ sub sm_new {
 	my $conn   = $rmq->new_connection();
 	my $socket = $rmq->tcp_socket_new($conn);
 	
-	my $self = bless {rmq => $rmq, conn => $conn, socket => $socket, config => $config}, $class;
+	my $self = bless {rmq => $rmq, conn => $conn, socket => $socket, config => $config, lm => 1}, $class;
 	
 	my $status = $rmq->socket_open($socket, $config->{host}, $config->{port});
 	return $self->_destroy_and_status(10) if $status;
@@ -173,12 +173,14 @@ sub sm_get_messages {
 	my $config  = $self->{config};
 	my $channel = $config->{channel};
 	
+	$self->{lm} = 1;
+	
 	my $status = $rmq->basic_consume($conn, $channel, $config->{queue}, undef, 0, 0, 0);
 	return 60 if $status != AMQP_RESPONSE_NORMAL();
 	
 	my $envelope = $rmq->type_create_envelope();
 	
-	while (1) {
+	while ($self->{lm}) {
 		$rmq->maybe_release_buffers($conn);
 		
 		my $status = $rmq->consume_message($conn, $envelope, 0, 0);
@@ -193,8 +195,12 @@ sub sm_get_messages {
 	
 	$rmq->type_destroy_envelope($envelope);
 	
+	$self->{lm} = 1;
+	
 	0;
 }
+
+sub sm_get_messages_break_loop {$_[0]->{lm} = 0}
 
 sub sm_get_message {
 	my ($self) = shift;
@@ -473,6 +479,13 @@ Loop to get messages
 	my $sm_status = $simple->sm_get_messages($callback);
 
 Return: 0 if successful, otherwise an error occurred
+
+
+=head3 sm_get_messages_break_loop
+
+Break messages loop after next iteration
+
+	$simple->sm_get_messages_break_loop();
 
 
 =head3 sm_get_message
