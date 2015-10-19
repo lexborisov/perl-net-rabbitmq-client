@@ -297,22 +297,15 @@ destroy_connection(rmq, conn)
 #=sort 1
 
 xs_status
-consume_message(rmq, conn, envelope, struct_timeout, flags)
+consume_message(rmq, conn, envelope, struct_timeout = 0, flags)
 	Net::RabbitMQ::Client rmq;
 	amqp_connection_state_t conn;
 	amqp_envelope_t *envelope;
-	SV *struct_timeout;
+	struct timeval *struct_timeout;
 	int flags;
 	
 	CODE:
-		struct timeval *t_timeout = NULL;
-		
-		if(SvOK(struct_timeout))
-		{
-			t_timeout = INT2PTR(struct timeval *, SvIV(struct_timeout));
-		}
-		
-		amqp_rpc_reply_t rt = amqp_consume_message(conn, envelope, t_timeout, flags);
+		amqp_rpc_reply_t rt = amqp_consume_message(conn, envelope, struct_timeout, flags);
 		RETVAL = rt.reply_type;
 		
 	OUTPUT:
@@ -757,19 +750,34 @@ type_destroy_envelope(rmq, envelope)
 #=sort 3
 
 struct timeval*
-type_create_timeout(rmq, timeout_sec)
+type_create_timeout(rmq, timeout_sec = 0, timeout_usec = 0)
 	Net::RabbitMQ::Client rmq;
 	long timeout_sec;
+	long timeout_usec;
 	
 	CODE:
 		struct timeval *timeout = (struct timeval *)malloc(sizeof(struct timeval));
 		
 		timeout->tv_sec = timeout_sec;
+		timeout->tv_usec = timeout_usec;
 		
 		RETVAL = timeout;
 		
 	OUTPUT:
 		RETVAL
+
+#=sort 3
+
+void
+type_change_timeout(rmq, struct_timeout, timeout_sec = 0, timeout_usec = 0)
+	Net::RabbitMQ::Client rmq;
+	struct timeval *struct_timeout;
+	long timeout_sec;
+	long timeout_usec;
+	
+	CODE:
+		struct_timeout->tv_sec = timeout_sec;
+		struct_timeout->tv_usec = timeout_usec;
 
 #=sort 4
 

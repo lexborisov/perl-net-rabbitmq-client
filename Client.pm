@@ -41,8 +41,6 @@ BEGIN {
 		AMQP_BASIC_DELIVERY_MODE_FLAG AMQP_BASIC_PRIORITY_FLAG AMQP_BASIC_CORRELATION_ID_FLAG AMQP_BASIC_REPLY_TO_FLAG
 		AMQP_BASIC_EXPIRATION_FLAG AMQP_BASIC_MESSAGE_ID_FLAG AMQP_BASIC_TIMESTAMP_FLAG AMQP_BASIC_TYPE_FLAG AMQP_BASIC_USER_ID_FLAG
 		AMQP_BASIC_APP_ID_FLAG AMQP_BASIC_CLUSTER_ID_FLAG
-		
-		sm_get_error_desc
 	);
 };
 
@@ -50,26 +48,6 @@ bootstrap Net::RabbitMQ::Client $VERSION;
 
 use DynaLoader ();
 use Exporter ();
-
-my $STATUSES = {
-	0  => undef,
-	10 => "Can't open socket",
-	20 => "Can't login on server",
-	30 => "Can't open chanel",
-	40 => "Can't declare exchange",
-	50 => "Cant' declare queue",
-	51 => "Can't bind queue",
-	60 => "Can't basic consume",
-	70 => "Can't publish data"
-};
-
-sub _destroy_and_status {
-	my ($self, $status) = @_;
-	
-	$self->sm_destroy();
-	
-	$status;
-}
 
 sub sm_new {
 	my ($class) = shift;
@@ -85,7 +63,7 @@ sub sm_new {
 	my $conn   = $rmq->new_connection();
 	my $socket = $rmq->tcp_socket_new($conn);
 	
-	my $self = bless {rmq => $rmq, conn => $conn, socket => $socket, config => $config, lm => 1}, $class;
+	my $self = bless {rmq => $rmq, conn => $conn, socket => $socket, config => $config, lm => 1}, "Net::RabbitMQ::Client::Simple";
 	
 	my $status = $rmq->socket_open($socket, $config->{host}, $config->{port});
 	return $self->_destroy_and_status(10) if $status;
@@ -110,14 +88,59 @@ sub sm_new {
 			return $self->_destroy_and_status(50) if $status != AMQP_RESPONSE_NORMAL();
 		}
 		
-		if (exists $config->{exchange} && $config->{exchange} ne '') {
+		if (defined $config->{exchange} && $config->{exchange} ne '') {
 			$rmq->queue_bind($conn, $config->{channel}, $config->{queue}, $config->{exchange}, $config->{routingkey}, 0);
 			return $self->_destroy_and_status(51) if $status != AMQP_RESPONSE_NORMAL();
 		}
 	}
 	
+	$self->{timeout} = $rmq->type_create_timeout(0, 0);
+	
 	$self;
 }
+
+package Net::RabbitMQ::Client::Simple;
+
+use utf8;
+use warnings;
+use strict;
+use vars qw($AUTOLOAD $VERSION $ABSTRACT @ISA @EXPORT);
+
+use Net::RabbitMQ::Client;
+
+BEGIN {
+	$VERSION = 0.5;
+	$ABSTRACT = "RabbitMQ client (XS for librabbitmq)";
+	
+	@ISA = qw(Exporter DynaLoader);
+	@EXPORT = qw(
+		sm_get_error_desc
+	);
+};
+
+
+
+my $STATUSES = {
+	0  => undef,
+	10 => "Can't open socket",
+	20 => "Can't login on server",
+	30 => "Can't open chanel",
+	40 => "Can't declare exchange",
+	50 => "Cant' declare queue",
+	51 => "Can't bind queue",
+	60 => "Can't basic consume",
+	70 => "Can't publish data"
+};
+
+sub _destroy_and_status {
+	my ($self, $status) = @_;
+	
+	$self->sm_destroy();
+	
+	$status;
+}
+
+
 
 sub sm_destroy {
 	my ($self) = @_;
@@ -130,6 +153,11 @@ sub sm_destroy {
 		$rmq->connection_close($self->{conn}, AMQP_REPLY_SUCCESS());
 		$rmq->destroy_connection($self->{conn});
 	}
+	
+	if (ref $self->{timeout}) {
+		$rmq->type_destroy_timeout($self->{timeout});
+	}
+	
 }
 
 sub sm_publish {
@@ -166,12 +194,15 @@ sub sm_publish {
 }
 
 sub sm_get_messages {
-	my ($self, $callback) = @_;
+	my ($self, $callback, $timeout_sec, $timeout_usec) = @_;
 	
 	my $rmq     = $self->{rmq};
 	my $conn    = $self->{conn};
 	my $config  = $self->{config};
 	my $channel = $config->{channel};
+	
+	$timeout_sec ||= 0;
+	$timeout_usec ||= 0;
 	
 	$self->{lm} = 1;
 	
@@ -183,8 +214,14 @@ sub sm_get_messages {
 	while ($self->{lm}) {
 		$rmq->maybe_release_buffers($conn);
 		
-		my $status = $rmq->consume_message($conn, $envelope, 0, 0);
-		next if $status != AMQP_RESPONSE_NORMAL();
+		if($timeout_sec || $timeout_usec) {
+			$rmq->type_change_timeout($self->{timeout}, $timeout_sec, $timeout_usec);
+			$status = $rmq->consume_message($conn, $envelope, $self->{timeout}, 0);
+		}
+		else {
+			$status = $rmq->consume_message($conn, $envelope, 0, 0);
+		}
+		last if $status != AMQP_RESPONSE_NORMAL();
 		
 		if($callback->($self, $rmq->envelope_get_message_body($envelope))) {
 			$rmq->basic_ack($conn, $channel, $rmq->envelope_get_delivery_tag($envelope), 0);
