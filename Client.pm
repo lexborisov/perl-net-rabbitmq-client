@@ -204,6 +204,8 @@ sub sm_get_messages {
 	$timeout_sec ||= 0;
 	$timeout_usec ||= 0;
 	
+	$rmq->type_change_timeout($self->{timeout}, $timeout_sec, $timeout_usec);
+	
 	$self->{lm} = 1;
 	
 	my $status = $rmq->basic_consume($conn, $channel, $config->{queue}, undef, 0, 0, 0);
@@ -215,11 +217,10 @@ sub sm_get_messages {
 		$rmq->maybe_release_buffers($conn);
 		
 		if($timeout_sec || $timeout_usec) {
-			$rmq->type_change_timeout($self->{timeout}, $timeout_sec, $timeout_usec);
 			$status = $rmq->consume_message($conn, $envelope, $self->{timeout}, 0);
 		}
 		else {
-			$status = $rmq->consume_message($conn, $envelope, 0, 0);
+			$status = $rmq->consume_message($conn, $envelope);
 		}
 		last if $status != AMQP_RESPONSE_NORMAL();
 		
@@ -352,7 +353,7 @@ Simple API:
 			print $message, "\n";
 			
 			1; # it is important to return 1 (send ask) or 0
-		});
+		}, 0, 0);
 		die sm_get_error_desc($sm_status) if $sm_status;
 		
 		$simple->sm_destroy();
@@ -513,7 +514,7 @@ Loop to get messages
 		1; # it is important to return 1 (send ask) or 0
 	}
 	
-	my $sm_status = $simple->sm_get_messages($callback);
+	my $sm_status = $simple->sm_get_messages($callback, $timeout_sec, $timeout_usec);
 
 Return: 0 if successful, otherwise an error occurred
 

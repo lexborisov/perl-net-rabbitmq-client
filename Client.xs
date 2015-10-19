@@ -297,7 +297,7 @@ destroy_connection(rmq, conn)
 #=sort 1
 
 xs_status
-consume_message(rmq, conn, envelope, struct_timeout = 0, flags)
+consume_message(rmq, conn, envelope, struct_timeout = 0, flags = 0)
 	Net::RabbitMQ::Client rmq;
 	amqp_connection_state_t conn;
 	amqp_envelope_t *envelope;
