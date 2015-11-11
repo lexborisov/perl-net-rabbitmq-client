@@ -5,7 +5,7 @@ use strict;
 use vars qw($AUTOLOAD $VERSION $ABSTRACT @ISA @EXPORT);
 
 BEGIN {
-	$VERSION = 0.5;
+	$VERSION = 0.6;
 	$ABSTRACT = "RabbitMQ client (XS for librabbitmq)";
 	
 	@ISA = qw(Exporter DynaLoader);
@@ -241,12 +241,17 @@ sub sm_get_messages {
 sub sm_get_messages_break_loop {$_[0]->{lm} = 0}
 
 sub sm_get_message {
-	my ($self) = shift;
+	my $self = shift;
 	
 	my $rmq     = $self->{rmq};
 	my $conn    = $self->{conn};
 	my $config  = $self->{config};
 	my $channel = $config->{channel};
+	
+	$_[1] ||= 0;
+	$_[2] ||= 0;
+	
+	$rmq->type_change_timeout($self->{timeout}, $_[1], $_[2]);
 	
 	my $status = $rmq->basic_consume($conn, $channel, $config->{queue}, undef, 0, 0, 0);
 	return $_[0] = 60 if $status != AMQP_RESPONSE_NORMAL() && exists $_[0];
@@ -256,7 +261,13 @@ sub sm_get_message {
 	
 	$rmq->maybe_release_buffers($conn);
 	
-	$status = $rmq->consume_message($conn, $envelope, 0, 0);
+	if($_[1] || $_[2]) {
+		$status = $rmq->consume_message($conn, $envelope, $self->{timeout}, 0);
+	}
+	else {
+		$status = $rmq->consume_message($conn, $envelope);
+	}
+	last if $status != AMQP_RESPONSE_NORMAL();
 	
 	if($status == AMQP_RESPONSE_NORMAL()) {
 		$message = $rmq->envelope_get_message_body($envelope);
@@ -352,7 +363,7 @@ Simple API:
 			
 			print $message, "\n";
 			
-			1; # it is important to return 1 (send ask) or 0
+			return 1; # it is important to return 1 (send ask) or 0
 		}, 0, 0);
 		die sm_get_error_desc($sm_status) if $sm_status;
 		
@@ -511,10 +522,10 @@ Loop to get messages
 	my $callback = {
 		my ($simple, $message) = @_;
 		
-		1; # it is important to return 1 (send ask) or 0
+		return 1; # it is important to return 1 (send ask) or 0
 	}
 	
-	my $sm_status = $simple->sm_get_messages($callback, $timeout_sec, $timeout_usec);
+	my $sm_status = $simple->sm_get_messages($callback[, $timeout_sec, $timeout_usec]);
 
 Return: 0 if successful, otherwise an error occurred
 
@@ -531,7 +542,8 @@ Break messages loop after next iteration
 Get one message
 	
 	my $sm_status = 0;
-	my $message = $simple->sm_get_message($sm_status);
+	my $message = $simple->sm_get_message($sm_status[, $timeout_sec, $timeout_usec]);
+	
 
 Return: message if successful
 
