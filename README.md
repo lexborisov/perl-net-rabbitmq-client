@@ -59,7 +59,7 @@ sub consume {
                 
                 print $message, "\n";
                 
-                1; # it is important to return 1 (send ask) or 0
+                return 1; # it is important to return 1 (send ask) or 0
         });
         die sm_get_error_desc($sm_status) if $sm_status;
         
@@ -221,10 +221,10 @@ Loop to get messages
 my $callback = {
         my ($simple, $message) = @_;
         
-        1; # it is important to return 1 (send ask) or 0
+        return 1; # it is important to return 1 (send ask) or 0
 }
 
-my $sm_status = $simple->sm_get_messages($callback);
+my $sm_status = $simple->sm_get_messages($callback[, $timeout_sec, $timeout_usec]);
 ```
 
 
@@ -246,7 +246,7 @@ Get one message
 
 ```perl
 my $sm_status = 0;
-my $message = $simple->sm_get_message($sm_status);
+my $message = $simple->sm_get_message($sm_status[, $timeout_sec, $timeout_usec]);
 ```
 
 
