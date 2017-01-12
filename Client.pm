@@ -226,6 +226,8 @@ sub sm_get_messages {
 		
 		if($callback->($self, $rmq->envelope_get_message_body($envelope))) {
 			$rmq->basic_ack($conn, $channel, $rmq->envelope_get_delivery_tag($envelope), 0);
+		} else {
+			$rmq->basic_nack($conn, $channel, $rmq->envelope_get_delivery_tag($envelope), 0, 1);
 		}
 		
 		$rmq->destroy_envelope($envelope);
